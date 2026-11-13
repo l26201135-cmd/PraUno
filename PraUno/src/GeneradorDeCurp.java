@@ -2,217 +2,154 @@ import java.util.Scanner;
 
 public class GeneradorDeCurp {
 
-    static Scanner entrada = new Scanner(System.in);
+    // Metodo para obtener la primera letra
+    public static char obtenerPrimeraLetra(String texto) {
+        return Character.toUpperCase(texto.charAt(0));
+    }
+
+    // Metodo para obtener la primera vocal interna
+    public static char obtenerPrimeraVocal(String texto) {
+
+        texto = texto.toUpperCase();
+
+        for (int i = 1; i < texto.length(); i++) {
+
+            char letra = texto.charAt(i);
+
+            if (letra == 'A' || letra == 'E' || letra == 'I'
+                    || letra == 'O' || letra == 'U') {
+
+                return letra;
+            }
+        }
+
+        return 'X';
+    }
+
+    // Metodo para obtener la primera consonante interna
+    public static char obtenerPrimeraConsonante(String texto) {
+
+        texto = texto.toUpperCase();
+
+        for (int i = 1; i < texto.length(); i++) {
+
+            char letra = texto.charAt(i);
+
+            if (letra != 'A' && letra != 'E' && letra != 'I'
+                    && letra != 'O' && letra != 'U') {
+
+                return letra;
+            }
+        }
+
+        return 'X';
+    }
+
+    // Metodo para separar dia, mes y año
+    public static String[] obtenerFecha(String fecha) {
+
+        String datos[] = fecha.split("/");
+
+        return datos;
+    }
+
+    // Metodo para obtener la clave del estado
+    public static String obtenerClaveEstado(String estado) {
+
+        estado = estado.toUpperCase();
+
+        if (estado.equals("HIDALGO")) {
+            return "HG";
+        } else if (estado.equals("PUEBLA")) {
+            return "PL";
+        } else if (estado.equals("VERACRUZ")) {
+            return "VZ";
+        } else if (estado.equals("TLAXCALA")) {
+            return "TL";
+        } else if (estado.equals("JALISCO")) {
+            return "JC";
+        } else {
+            return "NE";
+        }
+    }
+
+    // Metodo para generar la CURP
+    public static String generarCURP(String nombre,
+                                     String apellidoPaterno,
+                                     String apellidoMaterno,
+                                     String fecha,
+                                     String sexo,
+                                     String estado) {
+
+        String datos[] = obtenerFecha(fecha);
+
+        String dia = datos[0];
+        String mes = datos[1];
+        String anio = datos[2].substring(2);
+
+        String curp = "";
+
+        curp += obtenerPrimeraLetra(apellidoPaterno);
+        curp += obtenerPrimeraVocal(apellidoPaterno);
+        curp += obtenerPrimeraLetra(apellidoMaterno);
+        curp += obtenerPrimeraLetra(nombre);
+
+        curp += anio;
+        curp += mes;
+        curp += dia;
+
+        curp += sexo.toUpperCase();
+
+        curp += obtenerClaveEstado(estado);
+
+        curp += obtenerPrimeraConsonante(apellidoPaterno);
+        curp += obtenerPrimeraConsonante(apellidoMaterno);
+        curp += obtenerPrimeraConsonante(nombre);
+
+        // Dos caracteres finales
+        curp += "A1";
+
+        return curp;
+    }
 
     public static void main(String[] args) {
 
-        String nombreCompleto, paterno, materno;
-        String fecha, sexo, estado;
+        Scanner teclado = new Scanner(System.in);
 
-        System.out.println("*** GENERADOR DE CURP ***");
-        System.out.print("Nombre(s): ");
-        nombreCompleto = entrada.nextLine();
-        System.out.print("Apellido paterno: ");
-        paterno = entrada.nextLine();
-        System.out.print("Apellido materno: ");
-        materno = entrada.nextLine();
-        System.out.print("Fecha de nacimiento (DD/MM/AAAA): ");
-        fecha = entrada.nextLine();
-        while (!validarFecha(fecha)) {
-            System.out.print("Formato incorrecto. Escriba DD/MM/AAAA: ");
-            fecha = entrada.nextLine();
-        }
-        System.out.print("Sexo (H/M): ");
-        sexo = entrada.nextLine().trim().toUpperCase();
-        while (!sexo.equals("H") && !sexo.equals("M")) {
-            System.out.print("Escriba H o M: ");
-            sexo = entrada.nextLine().trim().toUpperCase();
-        }
-        System.out.print("Entidad federativa: ");
-        estado = normalizar(entrada.nextLine());
-        while (obtenerClaveEstado(estado).equals("XX")) {
-            System.out.print("Estado no reconocido. Intente de nuevo: ");
-            estado = normalizar(entrada.nextLine());
-        }
+        String nombre;
+        String apellidoPaterno;
+        String apellidoMaterno;
+        String fecha;
+        String sexo;
+        String estado;
+        String curp;
 
-        String resultado = generarCURP(nombreCompleto, paterno, materno, fecha, sexo, estado);
+        System.out.println("====== GENERADOR DE CURP ======");
 
-        System.out.println("\n*** DATOS PROCESADOS ***");
-        System.out.println("Nombre(s): " + nombreCompleto);
-        System.out.println("Apellido paterno: " + paterno);
-        System.out.println("Apellido materno: " + materno);
-        System.out.println("Tu CURP generada es: " + resultado);
-    }
+        System.out.print("Ingresa tu nombre o nommbres por favor: ");
+        nombre = teclado.nextLine();
 
-    static String generarCURP(String nombre, String paterno, String materno, String fecha, String sexo, String estado) {
+        System.out.print("Ingresa tu apellido paterno por favor: ");
+        apellidoPaterno = teclado.nextLine();
 
-        String primerNombre = obtenerPrimerNombre(nombre);
-        String resultado = "";
+        System.out.print("Ingresa tu apellido materno por favor: ");
+        apellidoMaterno = teclado.nextLine();
 
-        resultado += obtenerPrimeraLetra(paterno);
-        resultado += obtenerPrimeraVocal(paterno);
-        resultado += obtenerPrimeraLetra(materno);
-        resultado += obtenerPrimeraLetra(primerNombre);
-        resultado += obtenerFecha(fecha);
-        resultado += sexo;
-        resultado += obtenerClaveEstado(estado);
-        resultado += obtenerPrimeraConsonante(paterno);
-        resultado += obtenerPrimeraConsonante(materno);
-        resultado += obtenerPrimeraConsonante(primerNombre);
-        resultado += generarCamposRandom();
+        System.out.print("Ingresa tu fecha de nacimiento (dd/mm/aaaa): ");
+        fecha = teclado.nextLine();
 
-        return resultado;
-    }
+        System.out.print("Ingresa tu sexo (Hombre/Mujer): ");
+        sexo = teclado.nextLine();
 
-    static String obtenerPrimerNombre(String nombreCompleto) {
-        nombreCompleto = normalizar(nombreCompleto);
-        String primerNombre = "";
-        for (int i = 0; i < nombreCompleto.length(); i++) {
-            if (nombreCompleto.charAt(i) == ' ') {
-                break;
-            }
-            primerNombre += nombreCompleto.charAt(i);
-        }
-        return primerNombre;
-    }
+        System.out.print("Ingresa tu entidad federativa: ");
+        estado = teclado.nextLine();
 
-    static String obtenerPrimeraLetra(String palabra) {
-        palabra = normalizar(palabra);
-        return palabra.substring(0, 1);
-    }
+        curp = generarCURP(nombre, apellidoPaterno,
+                apellidoMaterno, fecha, sexo, estado);
 
-    static String obtenerPrimeraVocal(String palabra) {
-        palabra = normalizar(palabra);
-        for (int i = 1; i < palabra.length(); i++) {
-            char letra = palabra.charAt(i);
-            if (letra == 'A' || letra == 'E' || letra == 'I' ||
-                    letra == 'O' || letra == 'U') {
-                return String.valueOf(letra);
-            }
-        }
-        return "X";
-    }
+        System.out.println();
+        System.out.println("CURP GENERADA: " + curp);
 
-    static String obtenerPrimeraConsonante(String palabra) {
-        palabra = normalizar(palabra);
-        for (int i = 1; i < palabra.length(); i++) {
-            char letra = palabra.charAt(i);
-            if (letra >= 'A' && letra <= 'Z' &&
-                    letra != 'A' && letra != 'E' && letra != 'I' &&
-                    letra != 'O' && letra != 'U') {
-                return String.valueOf(letra);
-            }
-        }
-        return "X";
-    }
-
-    static String obtenerFecha(String fecha) {
-        String anio = fecha.substring(8, 10);
-        String mes = fecha.substring(3, 5);
-        String dia = fecha.substring(0, 2);
-        return anio + mes + dia;
-    }
-
-    static boolean validarFecha(String fecha) {
-        if (fecha.length() != 10 ||
-                fecha.charAt(2) != '/' ||
-                fecha.charAt(5) != '/') {
-            return false;
-        }
-        for (int i = 0; i < fecha.length(); i++) {
-            if (i != 2 && i != 5) {
-                if (fecha.charAt(i) < '0' ||
-                        fecha.charAt(i) > '9') {
-                    return false;
-                }
-            }
-        }
-
-        int dia = Integer.parseInt(fecha.substring(0, 2));
-        int mes = Integer.parseInt(fecha.substring(3, 5));
-        int año = Integer.parseInt(fecha.substring(6, 10));
-
-        if (año < 1 || mes < 1 || mes > 12 || dia < 1) {
-            return false;
-        }
-        int diasMes = 31;
-        if (mes == 4 || mes == 6 || mes == 9 || mes == 11) {
-            diasMes = 30;
-        }
-        else if (mes == 2) {
-            if (año % 400 == 0 ||
-                    (año % 4 == 0 && año % 100 != 0)) {
-                diasMes = 29;
-            } else {
-                diasMes = 28;
-            }
-        }
-        if (dia > diasMes) {
-            return false;
-        }
-        return true;
-    }
-
-    static String obtenerClaveEstado(String estado) {
-        String[] estados = {
-                "AGUASCALIENTES", "BAJA CALIFORNIA",
-                "BAJA CALIFORNIA SUR", "CAMPECHE",
-                "COAHUILA", "COLIMA", "CHIAPAS",
-                "CHIHUAHUA", "CIUDAD DE MÉXICO",
-                "DURANGO", "GUANAJUATO", "GUERRERO",
-                "HIDALGO", "JALISCO", "MÉXICO",
-                "MICHOACÁN", "MORELOS", "NAYARIT",
-                "NUEVO LEÓN", "OAXACA", "PUEBLA",
-                "QUERETARO", "QUINTANA ROO",
-                "SAN LUIS POTOSÍ", "SINALOA",
-                "SONORA", "TABASCO", "TAMAULIPAS",
-                "TLAXCALA", "VERACRUZ", "YUCATÁN",
-                "ZACATECAS", "EXTRANJERO",
-                "CDMX", "DISTRITO FEDERAL",
-                "ESTADO DE MEXICO", "COAHUILA DE ZARAGOZA",
-                "VERACRUZ DE IGNACIO DE LA LLAVE"
-        };
-        String[] claves = {
-                "AS", "BC", "BS", "CC", "CL", "CM",
-                "CS", "CH", "DF", "DG", "GT", "GR",
-                "HG", "JC", "MC", "MN", "MS", "NT",
-                "NL", "OC", "PL", "QT", "QR", "SP",
-                "SL", "SR", "TC", "TS", "TL", "VZ",
-                "YN", "ZS", "NE", "DF", "DF", "MC",
-                "CL", "VZ"
-        };
-
-        estado = normalizar(estado);
-        for (int i = 0; i < estados.length; i++) {
-            if (estado.equals(estados[i])) {
-                return claves[i];
-            }
-        }
-        return "XX";
-    }
-
-    static String generarCamposRandom() {
-        String caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        String campos = "";
-        for (int i = 0; i < 2; i++) {
-            int posicion = (int)(Math.random() * caracteres.length());
-            campos += caracteres.charAt(posicion);
-        }
-        return campos;
-    }
-
-    static String normalizar(String texto) {
-
-        texto = texto.trim().toUpperCase();
-
-        texto = texto.replace("Á", "A");
-        texto = texto.replace("É", "E");
-        texto = texto.replace("Í", "I");
-        texto = texto.replace("Ó", "O");
-        texto = texto.replace("Ú", "U");
-        texto = texto.replace("Ü", "U");
-        texto = texto.replace("Ñ", "X");
-
-        return texto;
+        teclado.close();
     }
 }
