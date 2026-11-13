@@ -126,7 +126,7 @@ public class GeneradorDeCurp {
 
         System.out.println("====== GENERADOR DE CURP ======");
 
-        System.out.print("Ingresa tu nombre o nommbres por favor: ");
+        System.out.print("Ingresa tu nombre o nombres por favor: ");
         nombre = teclado.nextLine();
 
         System.out.print("Ingresa tu apellido paterno por favor: ");
