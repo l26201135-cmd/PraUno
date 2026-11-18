@@ -1,0 +1,367 @@
+# FiscoSim - Simulador de Gestión Fiscal y Educación Financiera
+
+from datetime import datetime
+
+TASA_IVA = 0.16
+TASA_ISR_MORAL = 0.30   # Tasa general de ISR para personas morales
+TASA_PTU = 0.10         # Reparto de utilidades a los trabajadores (referencia)
+
+ingresos = []
+gastos = []
+deducciones_personales = []   # Solo persona física
+perdidas_anteriores = []      # Solo persona moral
+
+
+# ---------------------------------------------------------------
+# Entrada de datos
+# ---------------------------------------------------------------
+
+def leer_monto(mensaje):
+    while True:
+        try:
+            valor = float(input(mensaje))
+            if valor > 0:
+                return valor
+            else:
+                print("Monto inválido, escribe un número mayor que 0")
+        except ValueError:
+            print("Monto inválido, escribe un número mayor que 0")
+
+def elegir_tipo_contribuyente():
+    print("Tipo de contribuyente:")
+    print("1. Persona física (una persona: freelance, comerciante, profesionista...)")
+    print("2. Persona moral (una empresa o sociedad: S.A., S. de R.L., A.C....)")
+    while True:
+        opcion = input("Elige una opción (1-2): ").strip()
+        if opcion == "1":
+            return "fisica"
+        elif opcion == "2":
+            return "moral"
+        print("Opción no válida, escribe 1 o 2")
+
+def nombre_tipo(tipo):
+    return "Persona física" if tipo == "fisica" else "Persona moral"
+
+
+# ---------------------------------------------------------------
+# Registros
+# ---------------------------------------------------------------
+
+def registrar_ingreso():
+    concepto = input("Concepto de ingreso: ")
+    monto = leer_monto("Monto antes de IVA: ")
+    ingresos.append({"concepto": concepto, "monto": monto})
+    print("Ingreso registrado.\n")
+
+def registrar_gasto():
+    concepto = input("Concepto de gasto: ")
+    monto = leer_monto("Monto antes de IVA: ")
+    tiene_factura = input("¿Tiene factura? (s/n): ").lower() == 's'
+    categoria_permitida = input("¿Es de categoría permitida? (s/n): ").lower() == 's'
+    deducible = tiene_factura and categoria_permitida
+    if not deducible:
+        print("Este gasto no es deducible")
+    gastos.append({"concepto": concepto, "monto": monto, "deducible": deducible})
+    print("Gasto registrado.\n")
+
+def registrar_deduccion_personal():
+    """Solo persona física: gastos médicos, colegiaturas, intereses de hipoteca, etc."""
+    concepto = input("Concepto de deducción personal (médicos, colegiaturas, seguro...): ")
+    monto = leer_monto("Monto de la deducción: ")
+    deducciones_personales.append({"concepto": concepto, "monto": monto})
+    print("Deducción personal registrada.\n")
+
+def registrar_perdida_anterior():
+    """Solo persona moral: pérdidas fiscales de ejercicios anteriores."""
+    concepto = input("Ejercicio o concepto de la pérdida (ej. 'Pérdida 2025'): ")
+    monto = leer_monto("Monto de la pérdida fiscal: ")
+    perdidas_anteriores.append({"concepto": concepto, "monto": monto})
+    print("Pérdida fiscal registrada.\n")
+
+
+# ---------------------------------------------------------------
+# Cálculo de impuestos
+# ---------------------------------------------------------------
+
+def calcular_isr(utilidad):
+    """ISR de persona física (tarifa progresiva simplificada)."""
+    if utilidad <= 0:
+        return 0
+    elif utilidad <= 100000:
+        return 0 + 0.05 * utilidad
+    elif utilidad <= 250000:
+        return 5000 + 0.15 * (utilidad - 100000)
+    elif utilidad <= 500000:
+        return 27500 + 0.25 * (utilidad - 250000)
+    else:
+        return 90000 + 0.30 * (utilidad - 500000)
+
+def calcular_isr_moral(utilidad_fiscal):
+    """ISR de persona moral: tasa general del 30% sobre la utilidad fiscal."""
+    if utilidad_fiscal <= 0:
+        return 0
+    return TASA_ISR_MORAL * utilidad_fiscal
+
+def calcular_y_mostrar(nombre, tipo, tipo_actividad):
+    if not ingresos:
+        print("Primero registra al menos un ingreso\n")
+        return
+
+    total_ingresos = sum(i["monto"] for i in ingresos)
+    total_gastos_deducibles = sum(g["monto"] for g in gastos if g["deducible"])
+    utilidad = total_ingresos - total_gastos_deducibles
+
+    # ISR según el tipo de contribuyente
+    if tipo == "fisica":
+        total_deducciones = sum(d["monto"] for d in deducciones_personales)
+        base_gravable = max(utilidad - total_deducciones, 0)
+        isr = calcular_isr(base_gravable)
+    else:
+        total_perdidas = sum(p["monto"] for p in perdidas_anteriores)
+        base_gravable = max(utilidad - total_perdidas, 0)
+        isr = calcular_isr_moral(base_gravable)
+
+    iva_trasladado = total_ingresos * TASA_IVA
+    iva_acreditable = total_gastos_deducibles * TASA_IVA
+    iva_diferencia = iva_trasladado - iva_acreditable
+    if iva_diferencia > 0:
+        iva_a_pagar = iva_diferencia
+        saldo_a_favor = 0
+    else:
+        iva_a_pagar = 0
+        saldo_a_favor = -iva_diferencia
+    total_a_pagar = isr + iva_a_pagar
+
+    # Mostrar el resumen
+    print(f"\nResumen fiscal para {nombre} ({nombre_tipo(tipo)} - {tipo_actividad}):")
+    print(f"Ingresos totales: ${total_ingresos:.2f}")
+    print(f"Gastos deducibles totales: ${total_gastos_deducibles:.2f}")
+    print(f"Utilidad (Ingresos - Gastos deducibles): ${utilidad:.2f}")
+    if tipo == "fisica":
+        print(f"Deducciones personales: ${total_deducciones:.2f}")
+        print(f"Base gravable (Utilidad - Deducciones personales): ${base_gravable:.2f}")
+        print(f"ISR aproximado a pagar (tarifa progresiva): ${isr:.2f}")
+    else:
+        print(f"Pérdidas fiscales de ejercicios anteriores aplicadas: ${min(total_perdidas, max(utilidad, 0)):.2f}")
+        print(f"Utilidad fiscal (Utilidad - Pérdidas anteriores): ${base_gravable:.2f}")
+        print(f"ISR aproximado a pagar (tasa {TASA_ISR_MORAL * 100:.0f}%): ${isr:.2f}")
+    print(f"IVA trasladado (16% de ingresos): ${iva_trasladado:.2f}")
+    print(f"IVA acreditable (16% de gastos deducibles): ${iva_acreditable:.2f}")
+    if iva_a_pagar > 0:
+        print(f"IVA a pagar: ${iva_a_pagar:.2f}")
+    else:
+        print(f"Saldo a favor de IVA: ${saldo_a_favor:.2f}")
+    print(f"Total aproximado a pagar (ISR + IVA a pagar): ${total_a_pagar:.2f}")
+    if tipo == "moral":
+        ptu = max(utilidad, 0) * TASA_PTU
+        print(f"Referencia: PTU estimada (10% de la utilidad, se reparte a los trabajadores): ${ptu:.2f}")
+    print()
+
+    guardar_historial(nombre, tipo, utilidad, isr, iva_a_pagar, total_a_pagar)
+
+
+# ---------------------------------------------------------------
+# Historial y listados
+# ---------------------------------------------------------------
+
+def guardar_historial(nombre, tipo, utilidad, isr, iva_a_pagar, total_a_pagar):
+    with open("historial_fiscosim.txt", "a", encoding="utf-8") as f:
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        f.write(f"{fecha} - {nombre} ({nombre_tipo(tipo)}) - Utilidad: {utilidad:.2f}, ISR: {isr:.2f}, IVA a pagar: {iva_a_pagar:.2f}, Total a pagar: {total_a_pagar:.2f}\n")
+
+def ver_historial():
+    try:
+        with open("historial_fiscosim.txt", "r", encoding="utf-8") as f:
+            print("\nHistorial de simulaciones:")
+            for linea in f:
+                print(linea, end='')
+            print()
+    except FileNotFoundError:
+        print("No hay historial guardado.\n")
+
+def listar_registros(tipo):
+    print("\nIngresos registrados:")
+    for i in ingresos:
+        print(f"- {i['concepto']}: ${i['monto']:.2f}")
+    print("\nGastos registrados:")
+    for g in gastos:
+        ded = "Deducible" if g["deducible"] else "No deducible"
+        print(f"- {g['concepto']}: ${g['monto']:.2f} ({ded})")
+    if tipo == "fisica":
+        print("\nDeducciones personales registradas:")
+        for d in deducciones_personales:
+            print(f"- {d['concepto']}: ${d['monto']:.2f}")
+    else:
+        print("\nPérdidas fiscales de ejercicios anteriores:")
+        for p in perdidas_anteriores:
+            print(f"- {p['concepto']}: ${p['monto']:.2f}")
+    print()
+
+
+# ---------------------------------------------------------------
+# Educación financiera
+# ---------------------------------------------------------------
+
+PREGUNTAS_GENERALES = [
+    {
+        "pregunta": "¿Qué es el ISR?",
+        "opciones": {"a": "Impuesto sobre la renta", "b": "Impuesto sobre ventas", "c": "Impuesto a la propiedad"},
+        "correcta": "a",
+        "explicacion": "ISR significa Impuesto sobre la Renta, que se aplica a las utilidades.",
+        "info": "Se calcula sobre la ganancia (ingresos menos gastos deducibles), no sobre lo que vendes. "
+                "Las personas físicas pagan con tarifa progresiva y las morales con tasa general del 30%."
+    },
+    {
+        "pregunta": "¿Qué porcentaje es la tasa de IVA en México?",
+        "opciones": {"a": "10%", "b": "16%", "c": "20%"},
+        "correcta": "b",
+        "explicacion": "La tasa de IVA general en México es del 16%.",
+        "info": "Hay actividades con tasa 0% (como alimentos y medicinas) y otras exentas. "
+                "El IVA lo paga el consumidor final; tú solo lo cobras y lo entregas al SAT."
+    },
+    {
+        "pregunta": "¿Un gasto es deducible si no tiene factura?",
+        "opciones": {"a": "Sí", "b": "No", "c": "Solo si es mayor a 1000 pesos"},
+        "correcta": "b",
+        "explicacion": "Para ser deducible, un gasto debe contar con factura.",
+        "info": "Además de la factura (CFDI), el gasto debe ser estrictamente indispensable para tu actividad. "
+                "Ojo: los pagos en efectivo mayores a $2,000 tampoco se pueden deducir."
+    },
+    {
+        "pregunta": "¿Qué se resta al total de ingresos para calcular la utilidad?",
+        "opciones": {"a": "Gastos totales", "b": "Gastos deducibles", "c": "ISR"},
+        "correcta": "b",
+        "explicacion": "La utilidad se calcula restando gastos deducibles a ingresos.",
+        "info": "Los gastos no deducibles (sin factura o fuera de categoría) no bajan tu base de impuestos. "
+                "El ISR es el resultado del cálculo, no algo que se reste antes."
+    },
+    {
+        "pregunta": "¿Qué pasa si el IVA trasladado es menor al acreditable?",
+        "opciones": {"a": "Debes pagar IVA", "b": "Tienes saldo a favor", "c": "No pasa nada"},
+        "correcta": "b",
+        "explicacion": "Si el IVA acreditable es mayor, hay saldo a favor.",
+        "info": "La fórmula es IVA a pagar = IVA trasladado - IVA acreditable. "
+                "Si el resultado es negativo, puedes acreditarlo en meses siguientes o pedir devolución."
+    },
+]
+
+PREGUNTA_FISICA = {
+    "pregunta": "¿Cómo se calcula el ISR de una persona física?",
+    "opciones": {"a": "Con una tasa fija del 30%", "b": "Con una tarifa progresiva: a más utilidad, mayor porcentaje", "c": "Con la tasa del IVA (16%)"},
+    "correcta": "b",
+    "explicacion": "Las personas físicas pagan ISR con una tarifa progresiva por rangos de utilidad.",
+    "info": "Además, pueden restar deducciones personales (gastos médicos, colegiaturas, intereses hipotecarios, etc.) "
+            "antes de aplicar la tarifa, lo que reduce el ISR a pagar."
+}
+
+PREGUNTA_MORAL = {
+    "pregunta": "¿Qué tasa general de ISR paga una persona moral en México?",
+    "opciones": {"a": "10%", "b": "30%", "c": "16%"},
+    "correcta": "b",
+    "explicacion": "Las personas morales pagan ISR con una tasa general del 30% sobre su utilidad fiscal.",
+    "info": "A la utilidad se le pueden restar pérdidas fiscales de ejercicios anteriores. "
+            "Aparte, la empresa debe repartir 10% de su utilidad a los trabajadores (PTU)."
+}
+
+def modulo_educacion(tipo):
+    preguntas = list(PREGUNTAS_GENERALES)
+    preguntas.append(PREGUNTA_FISICA if tipo == "fisica" else PREGUNTA_MORAL)
+    total = len(preguntas)
+
+    aciertos = 0
+    for p in preguntas:
+        print("\n" + p["pregunta"])
+        for clave, texto in p["opciones"].items():
+            print(f"  {clave}) {texto}")
+
+        while True:
+            respuesta = input("Tu respuesta (a/b/c): ").lower().strip()
+            if respuesta in p["opciones"]:
+                break
+            print("Opción no válida, escribe a, b o c")
+
+        if respuesta == p["correcta"]:
+            print("Correcto.")
+            aciertos += 1
+        else:
+            correcta_texto = p["opciones"][p["correcta"]]
+            print(f"Incorrecto. La respuesta correcta era {p['correcta']}) {correcta_texto}.")
+        print(f"Explicación: {p['explicacion']}")
+        print(f"Para aprender más: {p['info']}")
+
+    if aciertos == total:
+        nivel = "Experto"
+    elif aciertos >= 3:
+        nivel = "Intermedio"
+    else:
+        nivel = "Principiante"
+
+    print(f"\nAcertaste {aciertos} de {total} preguntas. Nivel: {nivel}\n")
+
+
+# ---------------------------------------------------------------
+# Menú
+# ---------------------------------------------------------------
+
+def opciones_menu(tipo):
+    """Devuelve la lista de (clave, texto) del menú según el tipo de contribuyente."""
+    opciones = [
+        ("ingreso", "Registrar ingreso"),
+        ("gasto", "Registrar gasto"),
+    ]
+    if tipo == "fisica":
+        opciones.append(("deduccion", "Registrar deducción personal (médicos, colegiaturas...)"))
+    else:
+        opciones.append(("perdida", "Registrar pérdida fiscal de ejercicios anteriores"))
+    opciones += [
+        ("calcular", "Calcular impuestos"),
+        ("educacion", "Educación financiera"),
+        ("historial", "Ver historial"),
+        ("listar", "Ver ingresos y gastos"),
+        ("salir", "Salir"),
+    ]
+    return opciones
+
+def mostrar_menu(tipo):
+    opciones = opciones_menu(tipo)
+    print(f"Menú FiscoSim ({nombre_tipo(tipo)}):")
+    for numero, (clave, texto) in enumerate(opciones, start=1):
+        print(f"{numero}. {texto}")
+    opcion = input(f"Elige una opción (1-{len(opciones)}): ").strip()
+    if opcion.isdigit() and 1 <= int(opcion) <= len(opciones):
+        return opciones[int(opcion) - 1][0]
+    return None
+
+def main():
+    print("Bienvenido a FiscoSim")
+    nombre = input("Escribe tu nombre: ")
+    tipo = elegir_tipo_contribuyente()
+    tipo_actividad = input("Escribe tu tipo de actividad (freelance, comercio, servicios...): ")
+    print()
+
+    while True:
+        opcion = mostrar_menu(tipo)
+        if opcion == "ingreso":
+            registrar_ingreso()
+        elif opcion == "gasto":
+            registrar_gasto()
+        elif opcion == "deduccion":
+            registrar_deduccion_personal()
+        elif opcion == "perdida":
+            registrar_perdida_anterior()
+        elif opcion == "calcular":
+            calcular_y_mostrar(nombre, tipo, tipo_actividad)
+        elif opcion == "educacion":
+            modulo_educacion(tipo)
+        elif opcion == "historial":
+            ver_historial()
+        elif opcion == "listar":
+            listar_registros(tipo)
+        elif opcion == "salir":
+            print("Hasta pronto!")
+            break
+        else:
+            print("Opción no válida\n")
+
+if __name__ == "__main__":
+    main()
